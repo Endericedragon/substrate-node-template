@@ -202,6 +202,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+use system::pallet_prelude::OriginFor;
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
@@ -445,6 +446,21 @@ pub mod pallet {
 			let _leftover = <Self as ReservableCurrency<_>>::unreserve(&who, amount);
 			Ok(())
 		}
+
+		/// Endericedragon Fu Begin: Set position for oneself
+		#[pallet::call_index(6)]
+		#[pallet::weight(0)]  // In fact, I do not know what should be here instead of 0
+		pub fn set_position(origin: OriginFor<T>, new_position: Vec<u8>) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			Self::try_mutate_account(
+				&sender,
+				|target, _| {
+					target.position = Geohash::from(new_position);
+					Ok(())
+				}
+			)
+		}
+		// Endericedragon Fu End
 	}
 
 	#[pallet::event]
@@ -680,6 +696,28 @@ pub struct ReserveData<ReserveIdentifier, Balance> {
 	pub amount: Balance,
 }
 
+/// Endericedragon Fu: The Geohash struct
+const GEOHASH_LENGTH: usize = 14;
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct Geohash([u8; GEOHASH_LENGTH]);
+impl Default for Geohash {
+	fn default() -> Self {
+		Geohash([0; GEOHASH_LENGTH])
+	}
+}
+impl Geohash {
+	pub fn from(geohash: Vec<u8>) -> Self {
+		assert!(geohash.len() <= GEOHASH_LENGTH);
+		let mut position: [u8; GEOHASH_LENGTH] = [0; GEOHASH_LENGTH];
+		for (i, cc) in geohash.iter().enumerate() {
+			position[i] = *cc;
+		}
+		Geohash(position)
+	}
+}
+// Endericedragon Fu End
+
 /// All balance information for an account.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AccountData<Balance> {
@@ -703,6 +741,10 @@ pub struct AccountData<Balance> {
 	/// The amount that `free` may not drop below when withdrawing specifically for transaction
 	/// fee payment.
 	pub fee_frozen: Balance,
+
+	/// Endericedragon Fu: The position of this account, encoded in geohash
+	pub position: Geohash,
+	// Endericedragon Fu End
 }
 
 impl<Balance: Saturating + Copy + Ord> AccountData<Balance> {
