@@ -461,6 +461,33 @@ use system::pallet_prelude::OriginFor;
 			)
 		}
 		// Endericedragon Fu End
+
+		/// Endericedragon Fu: Transfer and update the position of the originator
+		#[pallet::call_index(7)]
+		#[pallet::weight(T::WeightInfo::transfer())]
+		pub fn transfer_with_position(
+			origin: OriginFor<T>,
+			dest: AccountIdLookupOf<T>,
+			#[pallet::compact] value: T::Balance,
+			position: Vec<u8>
+		) -> DispatchResultWithPostInfo {
+			let transactor = ensure_signed(origin)?;
+			let dest = T::Lookup::lookup(dest)?;
+			<Self as Currency<_>>::transfer(
+				&transactor,
+				&dest,
+				value,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			Self::try_mutate_account(
+				&transactor,
+				|target, _| {
+					target.position = Geohash::from(position);
+					Ok(().into())
+				}
+			)
+		}
+		// Endericedragon Fu
 	}
 
 	#[pallet::event]
